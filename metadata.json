@@ -1,0 +1,8 @@
+{
+  "name": "دليلك الجامعي – العراق",
+  "description": "دليل القبول المركزي للجامعات الحكومية في العراق 2025–2026 لحساب الفروق والفرز الدقيق.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

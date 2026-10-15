@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1e3a8a"/>
+      <stop offset="50%" stop-color="#1e40af"/>
+      <stop offset="100%" stop-color="#0f172a"/>
+    </linearGradient>
+    <linearGradient id="goldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fbbf24"/>
+      <stop offset="100%" stop-color="#f59e0b"/>
+    </linearGradient>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#000" flood-opacity="0.35"/>
+    </filter>
+  </defs>
+  
+  <!-- Rounded Base Background -->
+  <rect width="512" height="512" rx="108" fill="url(#bgGrad)"/>
+  
+  <!-- Outer Decorative Ring -->
+  <circle cx="256" cy="256" r="216" fill="none" stroke="#3b82f6" stroke-opacity="0.3" stroke-width="6" stroke-dasharray="8 8"/>
+  <circle cx="256" cy="256" r="200" fill="none" stroke="#60a5fa" stroke-opacity="0.2" stroke-width="2"/>
+
+  <!-- Academic Cap / University Symbol -->
+  <g filter="url(#shadow)">
+    <!-- Mortarboard Diamond -->
+    <polygon points="256,128 392,188 256,248 120,188" fill="url(#goldGrad)"/>
+    
+    <!-- Cap Underneath Base -->
+    <path d="M174,212 L174,272 C174,316 338,316 338,272 L338,212 L256,248 Z" fill="#ffffff" fill-opacity="0.95"/>
+    
+    <!-- Tassel Cord -->
+    <path d="M256,188 C290,192 370,220 376,280" fill="none" stroke="#d97706" stroke-width="7" stroke-linecap="round"/>
+    <circle cx="376" cy="288" r="9" fill="#b45309"/>
+    <rect x="372" y="294" width="8" height="28" rx="4" fill="#d97706"/>
+    
+    <!-- Open Book Symbol at Bottom -->
+    <path d="M256,368 C226,346 172,344 140,358 L140,418 C172,404 226,406 256,428 C286,406 340,404 372,418 L372,358 C340,344 286,346 256,368 Z" fill="#ffffff"/>
+    <line x1="256" y1="368" x2="256" y2="428" stroke="#1e3a8a" stroke-width="4"/>
+  </g>
+  
+  <!-- Star accents -->
+  <circle cx="160" cy="150" r="4" fill="#fbbf24"/>
+  <circle cx="352" cy="150" r="4" fill="#fbbf24"/>
+</svg>
