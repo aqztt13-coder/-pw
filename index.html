@@ -28,22 +28,6 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
-    
-    <script>
-      // Suppress benign dev environment WebSocket disconnect errors
-      window.addEventListener('error', function(e) {
-        if (e && (e.message && e.message.includes('WebSocket') || (e.filename && e.filename.includes('@vite/client')))) {
-          e.preventDefault();
-          e.stopImmediatePropagation();
-        }
-      }, true);
-      window.addEventListener('unhandledrejection', function(e) {
-        if (e && e.reason && String(e.reason).includes('WebSocket')) {
-          e.preventDefault();
-          e.stopImmediatePropagation();
-        }
-      }, true);
-    </script>
   </head>
   <body class="bg-slate-50 text-slate-800 antialiased selection:bg-blue-600 selection:text-white min-h-screen">
     <div id="root"></div>
