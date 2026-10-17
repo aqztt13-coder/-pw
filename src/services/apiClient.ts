@@ -1,20 +1,10 @@
 import { AdmissionRecord } from '../types/admission';
 
-const TOKEN_KEY = 'dalilak_admin_token';
-
-export function getStoredToken(): string | null {
-  return localStorage.getItem(TOKEN_KEY) || sessionStorage.getItem(TOKEN_KEY);
-}
-
-export function setStoredToken(token: string | null): void {
-  if (token) {
-    sessionStorage.setItem(TOKEN_KEY, token);
-    localStorage.setItem(TOKEN_KEY, token);
-  } else {
-    sessionStorage.removeItem(TOKEN_KEY);
-    localStorage.removeItem(TOKEN_KEY);
-  }
-}
+// Defensive cleanup for any legacy tokens stored in client storage
+try {
+  sessionStorage.removeItem('dalilak_admin_token');
+  localStorage.removeItem('dalilak_admin_token');
+} catch {}
 
 /**
  * Public: Fetch confirmed admission records
@@ -44,46 +34,42 @@ export async function fetchAdmissionRecords(): Promise<{
 }
 
 /**
- * Admin Login
+ * Admin Login: Authenticates with server and receives HttpOnly Secure session cookie
  */
 export async function adminLogin(
   username: string,
   pass: string
-): Promise<{ success: boolean; token?: string; error?: string }> {
+): Promise<{ success: boolean; error?: string }> {
   try {
     const res = await fetch('/api/auth/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      credentials: 'same-origin',
       body: JSON.stringify({ username, password: pass }),
     });
 
     const data = await res.json();
-    if (res.ok && data.success && data.token) {
-      setStoredToken(data.token);
-      return { success: true, token: data.token };
+    if (res.ok && data.success) {
+      return { success: true };
     }
-    return { success: false, error: data.error || 'فشل تسجيل الدخول' };
+    return { success: false, error: data.error || 'بيانات الدخول غير صحيحة.' };
   } catch (err: any) {
     return { success: false, error: 'حدث خطأ أثناء الاتصال بالخادم.' };
   }
 }
 
 /**
- * Admin Verify
+ * Admin Verify: Checks session state using HttpOnly cookie
  */
 export async function adminVerify(): Promise<{ authenticated: boolean; username?: string }> {
-  const token = getStoredToken();
-  if (!token) return { authenticated: false };
-
   try {
     const res = await fetch('/api/auth/verify', {
-      headers: { Authorization: `Bearer ${token}` },
+      credentials: 'same-origin',
     });
     if (res.ok) {
       const data = await res.json();
       return { authenticated: !!data.authenticated, username: data.username };
     }
-    setStoredToken(null);
     return { authenticated: false };
   } catch (err) {
     return { authenticated: false };
@@ -91,19 +77,15 @@ export async function adminVerify(): Promise<{ authenticated: boolean; username?
 }
 
 /**
- * Admin Logout
+ * Admin Logout: Invalidates server session and clears HttpOnly cookie
  */
 export async function adminLogout(): Promise<void> {
-  const token = getStoredToken();
-  if (token) {
-    try {
-      await fetch('/api/auth/logout', {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
-      });
-    } catch {}
-  }
-  setStoredToken(null);
+  try {
+    await fetch('/api/auth/logout', {
+      method: 'POST',
+      credentials: 'same-origin',
+    });
+  } catch {}
 }
 
 /**
@@ -117,24 +99,13 @@ export async function uploadAdmissionRecords(records: any[]): Promise<{
   lastUpdated?: string;
   error?: string;
 }> {
-  const token = getStoredToken();
-  if (!token) {
-    return {
-      success: false,
-      count: 0,
-      reviewCount: 0,
-      duplicateCount: 0,
-      error: 'غير مصرح: يجب تسجيل الدخول كمدير أولاً.',
-    };
-  }
-
   try {
     const res = await fetch('/api/admin/upload-data', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
       },
+      credentials: 'same-origin',
       body: JSON.stringify({ records }),
     });
 
@@ -171,24 +142,13 @@ export async function fetchAdminDataSummary(): Promise<{
   duplicateCount: number;
   lastUpdated: string | null;
   reviewRecords: AdmissionRecord[];
+  hasBackup?: boolean;
+  hasPreRestoreSnapshot?: boolean;
   error?: string;
 }> {
-  const token = getStoredToken();
-  if (!token) {
-    return {
-      success: false,
-      count: 0,
-      reviewCount: 0,
-      duplicateCount: 0,
-      lastUpdated: null,
-      reviewRecords: [],
-      error: 'غير مصرح',
-    };
-  }
-
   try {
     const res = await fetch('/api/admin/data-summary', {
-      headers: { Authorization: `Bearer ${token}` },
+      credentials: 'same-origin',
     });
     const data = await res.json();
     return data;
@@ -209,16 +169,65 @@ export async function fetchAdminDataSummary(): Promise<{
  * Admin: Clear data
  */
 export async function deleteAdmissionRecords(): Promise<{ success: boolean; error?: string }> {
-  const token = getStoredToken();
-  if (!token) return { success: false, error: 'غير مصرح' };
-
   try {
     const res = await fetch('/api/admin/delete-data', {
       method: 'POST',
-      headers: { Authorization: `Bearer ${token}` },
+      credentials: 'same-origin',
     });
     return await res.json();
   } catch (err: any) {
     return { success: false, error: err.message };
+  }
+}
+
+/**
+ * Admin: Restore from Disaster Recovery Backup
+ */
+export async function restoreAdminBackup(): Promise<{
+  success: boolean;
+  count?: number;
+  message?: string;
+  lastUpdated?: string;
+  error?: string;
+}> {
+  try {
+    const res = await fetch('/api/admin/restore-backup', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      credentials: 'same-origin',
+      body: JSON.stringify({ confirm: true }),
+    });
+    const data = await res.json();
+    return data;
+  } catch (err: any) {
+    return { success: false, error: 'تعذر الاتصال بالخادم لاستعادة النسخة الاحتياطية.' };
+  }
+}
+
+/**
+ * Admin: Rollback Restore (reverts to the snapshot taken immediately before the last restore)
+ */
+export async function rollbackAdminRestore(): Promise<{
+  success: boolean;
+  count?: number;
+  message?: string;
+  lastUpdated?: string;
+  error?: string;
+}> {
+  try {
+    const res = await fetch('/api/admin/rollback-restore', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      credentials: 'same-origin',
+      body: JSON.stringify({ confirm: true }),
+    });
+    const data = await res.json();
+    return data;
+  } catch (err: any) {
+    return { success: false, error: 'تعذر الاتصال بالخادم للتراجع عن الاستعادة.' };
   }
 }

@@ -13,12 +13,30 @@ export interface DataLoadResult {
 }
 
 /**
- * Normalizes input text strings and trims extra spaces
+ * Normalizes input text strings, trims extra spaces, guards against formula injection
  */
-export function cleanText(val: unknown): string {
+export function cleanText(val: unknown, maxLength = 250): string {
   if (val === null || val === undefined) return 'غير متوفر في البيانات';
-  const str = String(val).trim();
-  return str.length > 0 ? str : 'غير متوفر في البيانات';
+  let str = String(val).trim();
+  if (str.length === 0) return 'غير متوفر في البيانات';
+
+  // Bound string length
+  if (str.length > maxLength) {
+    str = str.substring(0, maxLength);
+  }
+  return str;
+}
+
+/**
+ * Escapes values for CSV/Spreadsheet exports to prevent Formula Injection (CWE-1236)
+ * without mutating canonical source data in storage.
+ */
+export function escapeSpreadsheetCell(val: string): string {
+  if (!val) return '';
+  if (/^[=+\-@\t\r]/.test(val)) {
+    return "'" + val;
+  }
+  return val;
 }
 
 /**

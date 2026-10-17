@@ -14,14 +14,19 @@ import {
   Layers,
   ArrowRight,
   FileText,
-  AlertCircle
+  AlertCircle,
+  RotateCcw,
+  Undo2,
+  Download
 } from 'lucide-react';
 import {
   adminLogout,
   uploadAdmissionRecords,
   fetchAdminDataSummary,
   deleteAdmissionRecords,
-  fetchAdmissionRecords
+  fetchAdmissionRecords,
+  restoreAdminBackup,
+  rollbackAdminRestore
 } from '../services/apiClient';
 import { AdmissionRecord } from '../types/admission';
 
@@ -42,12 +47,16 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     duplicateCount: number;
     lastUpdated: string | null;
     reviewRecords: AdmissionRecord[];
+    hasBackup?: boolean;
+    hasPreRestoreSnapshot?: boolean;
   }>({
     count: 0,
     reviewCount: 0,
     duplicateCount: 0,
     lastUpdated: null,
     reviewRecords: [],
+    hasBackup: false,
+    hasPreRestoreSnapshot: false,
   });
 
   const [activeTab, setActiveTab] = useState<'upload' | 'current' | 'review'>('upload');
@@ -80,6 +89,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         duplicateCount: data.duplicateCount,
         lastUpdated: data.lastUpdated,
         reviewRecords: data.reviewRecords || [],
+        hasBackup: !!data.hasBackup,
+        hasPreRestoreSnapshot: !!data.hasPreRestoreSnapshot,
       });
     }
   };
@@ -239,6 +250,52 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     } finally {
       setIsUploading(false);
     }
+  };
+
+  const handleRestoreBackup = async () => {
+    if (window.confirm('هل تريد استعادة البيانات من آخر نسخة احتياطية محفوظة على الخادم؟')) {
+      const res = await restoreAdminBackup();
+      if (res.success) {
+        setStatusMessage({
+          type: 'success',
+          text: res.message || `تمت استعادة ${res.count} سجلاً من النسخة الاحتياطية بنجاح.`,
+        });
+        await loadSummary();
+        onDataChanged();
+      } else {
+        setStatusMessage({
+          type: 'error',
+          text: res.error || 'تعذر استعادة النسخة الاحتياطية.',
+        });
+      }
+    }
+  };
+
+  const handleRollbackRestore = async () => {
+    if (window.confirm('هل أنت متأكد من رغبتك في التراجع عن الاستعادة وإعادة البيانات التي كانت موجودة قبل الاستعادة مباشرة؟')) {
+      const res = await rollbackAdminRestore();
+      if (res.success) {
+        setStatusMessage({
+          type: 'success',
+          text: res.message || `تم التراجع عن الاستعادة وإعادة البيانات بنجاح (${res.count} سجلاً).`,
+        });
+        await loadSummary();
+        onDataChanged();
+      } else {
+        setStatusMessage({
+          type: 'error',
+          text: res.error || 'تعذر التراجع عن الاستعادة.',
+        });
+      }
+    }
+  };
+
+  const handleExportData = () => {
+    window.location.href = '/api/admin/export-data';
+  };
+
+  const handleDownloadBackup = () => {
+    window.location.href = '/api/admin/download-backup';
   };
 
   const handleClearAll = async () => {
@@ -531,13 +588,51 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 <h4 className="text-xs font-bold text-slate-700">
                   السجلات المعتمدة المخزنة حالياً على الخادم:
                 </h4>
-                <button
-                  onClick={handleClearAll}
-                  className="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                  <span>تفريغ كافة البيانات</span>
-                </button>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <button
+                    onClick={handleExportData}
+                    className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer"
+                    title="تنزيل نسخة من البيانات الحالية بصيغة JSON وحفظها خارج الحاوية"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    <span>تصدير البيانات</span>
+                  </button>
+                  {summary.hasBackup && (
+                    <button
+                      onClick={handleDownloadBackup}
+                      className="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-800 border border-indigo-200 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer"
+                      title="تنزيل ملف النسخة الاحتياطية وحفظه خارج الحاوية"
+                    >
+                      <Download className="w-3.5 h-3.5" />
+                      <span>تنزيل النسخة الاحتياطية</span>
+                    </button>
+                  )}
+                  {summary.hasPreRestoreSnapshot && (
+                    <button
+                      onClick={handleRollbackRestore}
+                      className="px-3 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer"
+                      title="التراجع عن آخر استعادة وإعادة البيانات التي سبقتها"
+                    >
+                      <Undo2 className="w-3.5 h-3.5" />
+                      <span>التراجع عن الاستعادة</span>
+                    </button>
+                  )}
+                  <button
+                    onClick={handleRestoreBackup}
+                    className="px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-800 border border-blue-200 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer"
+                    title="استرجاع آخر نسخة احتياطية صالحة تم حفظها تلقائياً"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5" />
+                    <span>استعادة النسخة الاحتياطية</span>
+                  </button>
+                  <button
+                    onClick={handleClearAll}
+                    className="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>تفريغ كافة البيانات</span>
+                  </button>
+                </div>
               </div>
 
               {summary.count === 0 ? (
